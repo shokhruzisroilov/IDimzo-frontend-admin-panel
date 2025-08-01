@@ -1,0 +1,45 @@
+image: docker:latest
+
+services:
+  - docker:dind
+
+variables:
+  ADMIN_PANEL_DOCKER_IMAGE_NAME: registry.gitlab.com/idimzo/idimzo_admin_panel_frontend
+  ADMIN_PANEL_DOCKER_IMAGE_TAG: latest
+  ADMIN_PANEL_CONTAINER_NAME: idimzo_admin_panel
+  ADMIN_PANEL_NETWORK_NAME: idimzo_network
+
+stages:
+  - build_and_push
+  - deploy
+
+build_and_push:
+  stage: build_and_push
+  image: docker:dind
+  services:
+    - docker:dind
+  script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker build -t $ADMIN_PANEL_DOCKER_IMAGE_NAME:$ADMIN_PANEL_DOCKER_IMAGE_TAG .
+    - docker push $ADMIN_PANEL_DOCKER_IMAGE_NAME:$ADMIN_PANEL_DOCKER_IMAGE_TAG
+  after_script:
+    - docker images
+  only:
+    - main
+
+
+deploy:
+  stage: deploy
+  when: manual
+  tags:
+    - ownrunner
+  before_script:
+    - apk add --no-cache openssh-client sshpass
+  script:
+    - sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_SERVER_IP "docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY"
+    - sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_SERVER_IP "docker pull $ADMIN_PANEL_DOCKER_IMAGE_NAME:$ADMIN_PANEL_DOCKER_IMAGE_TAG"
+    - sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_SERVER_IP "docker stop $ADMIN_PANEL_CONTAINER_NAME || true"
+    - sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_SERVER_IP "docker rm $ADMIN_PANEL_CONTAINER_NAME || true"
+    - sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_SERVER_IP "docker run -d --name $ADMIN_PANEL_CONTAINER_NAME --network $ADMIN_PANEL_NETWORK_NAME -p 8080:80 --add-host host.docker.internal:host-gateway $ADMIN_PANEL_DOCKER_IMAGE_NAME:$ADMIN_PANEL_DOCKER_IMAGE_TAG"
+  only:
+    - main
