@@ -17,7 +17,7 @@ const newsSlice = createSlice({
 	name: 'news',
 	initialState,
 	reducers: {
-		// Fetch all or single
+		// Fetch all or a single news item
 		fetchNewsStart(state) {
 			state.isLoading = true
 			state.error = null
@@ -31,7 +31,7 @@ const newsSlice = createSlice({
 			state.error = action.payload
 		},
 
-		// Create
+		// Create news
 		createNewsStart(state) {
 			state.isLoading = true
 			state.error = null
@@ -45,23 +45,7 @@ const newsSlice = createSlice({
 			state.error = action.payload
 		},
 
-		// Update
-		updateNewsStart(state) {
-			state.isLoading = true
-			state.error = null
-		},
-		updateNewsSuccess(state, action: PayloadAction<News>) {
-			state.news = state.news.map(n =>
-				n.id === action.payload.id ? action.payload : n
-			)
-			state.isLoading = false
-		},
-		updateNewsFailure(state, action: PayloadAction<string>) {
-			state.isLoading = false
-			state.error = action.payload
-		},
-
-		// Delete
+		// Delete news
 		deleteNewsStart(state) {
 			state.isLoading = true
 			state.error = null
@@ -77,6 +61,7 @@ const newsSlice = createSlice({
 	},
 })
 
+// Export actions
 export const {
 	fetchNewsStart,
 	fetchNewsSuccess,
@@ -84,12 +69,10 @@ export const {
 	createNewsStart,
 	createNewsSuccess,
 	createNewsFailure,
-	updateNewsStart,
-	updateNewsSuccess,
-	updateNewsFailure,
 	deleteNewsStart,
 	deleteNewsSuccess,
 	deleteNewsFailure,
 } = newsSlice.actions
 
+// Export reducer
 export default newsSlice.reducer

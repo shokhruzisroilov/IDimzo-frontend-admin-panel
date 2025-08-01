@@ -1,15 +1,17 @@
 import API from './API'
 
-// Yangiliklar interfeysi (to‘liq obyekt)
+// Full news object model
 export interface News {
 	id: number
-	titleUz: string
-	titleUzCyrl: string
-	titleKaa: string
-	titleRu: string
-	titleEn: string
+	title: {
+		uz: string
+		uzCyrl: string
+		kaa: string
+		ru: string
+		en: string
+	}
 	mediaUrl: string
-	mediaType: 'WEBP' | 'PNG' | 'JPG' | 'JPEG' | 'MP4' | 'WEBM' | 'MOV'
+	mediaType: string
 	externalLink: string
 	publishDate: string
 	expiryDate: string
@@ -17,7 +19,7 @@ export interface News {
 	active: boolean
 }
 
-// Yangilik yaratish/yangi ma’lumot yuborish uchun interfeys
+// DTO for creating a new news entry
 export interface CreateNewsDto {
 	titleUz: string
 	titleUzCyrl: string
@@ -30,39 +32,21 @@ export interface CreateNewsDto {
 	expiryDate: string
 }
 
-// CRUD xizmatlari
+// News CRUD service
 const NewsService = {
-	// Barcha yangiliklarni olish
-	async getAll(): Promise<News[]> {
-		const res = await API.get('/news')
-		return res.data
-	},
-
-	// Admin panel uchun yangiliklar
+	// Fetch news for admin panel
 	async getAdmin(): Promise<News[]> {
 		const res = await API.get('/news/admin')
 		return res.data
 	},
 
-	// ID bo‘yicha yangilikni olish
-	async getById(id: number): Promise<News> {
-		const res = await API.get(`/news/${id}`)
-		return res.data
-	},
-
-	// Yangilik qo‘shish
+	// Create a new news entry
 	async create(data: CreateNewsDto): Promise<News> {
 		const res = await API.post('/news', data)
 		return res.data
 	},
 
-	// Yangilikni yangilash
-	async update(id: number, data: CreateNewsDto): Promise<News> {
-		const res = await API.put(`/news/${id}`, data)
-		return res.data
-	},
-
-	// Yangilikni o‘chirish
+	// Delete a news entry by ID
 	async delete(id: number): Promise<void> {
 		await API.delete(`/news/${id}`)
 	},

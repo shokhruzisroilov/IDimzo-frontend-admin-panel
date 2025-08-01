@@ -1,47 +1,58 @@
+// importlar va type'lar o‘zgarmaydi
 import { CirclePlus, X } from 'lucide-react'
 import { useState, useRef } from 'react'
 import type { ChangeEvent } from 'react'
+import { createNews } from '../../../redux/actions/newsActions'
+import { uploadFile } from '../../../services/uploadService'
+import { useAppDispatch } from '../../../redux/store'
 
 type LanguageCode = 'uz' | 'uzc' | 'kaa' | 'ru' | 'en'
 
-interface NewsFormData {
-	[key: string]: {
-		title: string
-		url: string
-		media: {
-			file: File | null
-			previewUrl: string
-		}
+interface NewsFormDataItem {
+	title: string
+	url: string
+	media: {
+		file: File | null
+		previewUrl: string
 	}
 }
 
+const languages = [
+	{ code: 'uz', label: "O'zbekcha", field: 'titleUz' },
+	{ code: 'uzc', label: 'Ўзбекча', field: 'titleUzCyrl' },
+	{ code: 'kaa', label: 'Qaraqalpaqcha', field: 'titleKaa' },
+	{ code: 'ru', label: 'Русский', field: 'titleRu' },
+	{ code: 'en', label: 'English', field: 'titleEn' },
+] as const
+
 const CreateNews = () => {
-	const [formData, setFormData] = useState<NewsFormData>({
-		uz: { title: '', url: '', media: { file: null, previewUrl: '' } },
-		uzc: { title: '', url: '', media: { file: null, previewUrl: '' } },
-		kaa: { title: '', url: '', media: { file: null, previewUrl: '' } },
-		ru: { title: '', url: '', media: { file: null, previewUrl: '' } },
-		en: { title: '', url: '', media: { file: null, previewUrl: '' } },
-	})
+	const dispatch = useAppDispatch()
 
-	const fileInputRefs: Record<
-		LanguageCode,
-		React.RefObject<HTMLInputElement>
-	> = {
-		uz: useRef(null),
-		uzc: useRef(null),
-		kaa: useRef(null),
-		ru: useRef(null),
-		en: useRef(null),
+	const [formData, setFormData] = useState<
+		Record<LanguageCode, NewsFormDataItem>
+	>(() =>
+		languages.reduce((acc, lang) => {
+			acc[lang.code] = {
+				title: '',
+				url: '',
+				media: { file: null, previewUrl: '' },
+			}
+			return acc
+		}, {} as Record<LanguageCode, NewsFormDataItem>)
+	)
+
+	const [publishDate, setPublishDate] = useState('')
+	const [expiryDate, setExpiryDate] = useState('')
+	const [externalLink, setExternalLink] = useState('')
+	const [errors, setErrors] = useState<Record<string, string>>({})
+
+	const fileInputRefs = {
+		uz: useRef<HTMLInputElement>(null),
+		uzc: useRef<HTMLInputElement>(null),
+		kaa: useRef<HTMLInputElement>(null),
+		ru: useRef<HTMLInputElement>(null),
+		en: useRef<HTMLInputElement>(null),
 	}
-
-	const languages: { code: LanguageCode; label: string }[] = [
-		{ code: 'uz', label: "O'zbekcha" },
-		{ code: 'uzc', label: 'Ўзбекча' },
-		{ code: 'kaa', label: 'Qaraqalpaqcha' },
-		{ code: 'ru', label: 'Русский' },
-		{ code: 'en', label: 'English' },
-	]
 
 	const handleInputChange = (
 		e: React.ChangeEvent<HTMLInputElement>,
@@ -57,22 +68,40 @@ const CreateNews = () => {
 		}))
 	}
 
-	const handleFileChange = (
+	const handleFileChange = async (
 		e: ChangeEvent<HTMLInputElement>,
 		langCode: LanguageCode
 	) => {
-		if (e.target.files && e.target.files[0]) {
-			const file = e.target.files[0]
+		const file = e.target.files?.[0]
+		if (!file) return
+
+		const localPreviewUrl = URL.createObjectURL(file)
+
+		setFormData(prev => ({
+			...prev,
+			[langCode]: {
+				...prev[langCode],
+				media: {
+					file,
+					previewUrl: localPreviewUrl,
+				},
+			},
+		}))
+
+		try {
+			const uploadedUrl = await uploadFile(file)
 			setFormData(prev => ({
 				...prev,
 				[langCode]: {
 					...prev[langCode],
 					media: {
 						file,
-						previewUrl: URL.createObjectURL(file),
+						previewUrl: uploadedUrl,
 					},
 				},
 			}))
+		} catch (error) {
+			console.error('Yuklashda xatolik:', error)
 		}
 	}
 
@@ -84,40 +113,105 @@ const CreateNews = () => {
 				media: { file: null, previewUrl: '' },
 			},
 		}))
-		if (fileInputRefs[langCode].current) {
-			fileInputRefs[langCode].current!.value = ''
-		}
+		const ref = fileInputRefs[langCode].current
+		if (ref) ref.value = ''
 	}
 
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault()
+
+		const newErrors: Record<string, string> = {}
+
+		if (!formData.uz.title.trim()) {
+			newErrors['titleUZ'] = "O'zbekcha sarlavha kiritilishi shart."
+		}
+		if (!formData.uz.media.previewUrl) {
+			newErrors['mediaUZ'] = "O'zbekcha rasm yoki video yuklash shart."
+		}
+
+		if (Object.keys(newErrors).length > 0) {
+			setErrors(newErrors)
+			return
+		}
+
+		setErrors({})
+
+		const dto: any = {
+			publishDate: new Date(publishDate).toISOString(),
+			expiryDate: new Date(expiryDate).toISOString(),
+			mediaUrl: formData.uz.media.previewUrl,
+			externalLink,
+		}
+
+		languages.forEach(lang => {
+			dto[lang.field] = formData[lang.code].title
+		})
+
+		dispatch(createNews(dto))
 	}
 
 	return (
-		<div className='w-full p-6 bg-white'>
-			<h1 className='text-2xl font-bold mb-6'>Yangi yangilik qo'shish</h1>
+		<div className='w-full p-4 sm:p-6 bg-white'>
+			<h1 className='text-xl sm:text-2xl font-bold mb-6'>
+				Yangi yangilik qo'shish
+			</h1>
 
 			<form onSubmit={handleSubmit}>
+				{/* Sanalar */}
+				<div className='grid grid-cols-1 md:grid-cols-2 gap-4 mb-6'>
+					<div>
+						<label className='block mb-2 font-medium'>Publish Date</label>
+						<input
+							type='datetime-local'
+							value={publishDate}
+							onChange={e => setPublishDate(e.target.value)}
+							required
+							className='w-full px-4 py-2 border border-gray-300 rounded'
+						/>
+					</div>
+					<div>
+						<label className='block mb-2 font-medium'>Expiry Date</label>
+						<input
+							type='datetime-local'
+							value={expiryDate}
+							onChange={e => setExpiryDate(e.target.value)}
+							required
+							className='w-full px-4 py-2 border border-gray-300 rounded'
+						/>
+					</div>
+				</div>
+
+				{/* Til bo‘yicha inputlar */}
 				{languages.map(lang => (
-					<div key={lang.code} className='flex justify-between mb-6'>
-						{/* Title */}
-						<div className='w-[30%]'>
-							<p className='mb-2 font-medium'>{lang.label}</p>
+					<div
+						key={lang.code}
+						className='grid grid-cols-1 md:grid-cols-3 gap-4 mb-6'
+					>
+						{/* Sarlavha */}
+						<div>
+							<label className='mb-2 font-medium block'>{lang.label}</label>
 							<input
 								type='text'
 								value={formData[lang.code].title}
 								onChange={e => handleInputChange(e, lang.code, 'title')}
-								placeholder='Nomi'
-								className='w-full px-4 py-2 border border-gray-300 rounded'
+								placeholder='Sarlavha'
+								className={`w-full px-4 py-2 border rounded ${
+									errors[`title${lang.code.toUpperCase()}`]
+										? 'border-red-500'
+										: 'border-gray-300'
+								}`}
 								required={lang.code === 'uz'}
 							/>
+							{errors[`title${lang.code.toUpperCase()}`] && (
+								<p className='text-red-500 text-sm mt-1'>
+									{errors[`title${lang.code.toUpperCase()}`]}
+								</p>
+							)}
 						</div>
 
-						{/* File */}
-						<div className='w-[30%]'>
-							<p className='mb-2 font-medium'>
-								375x816 (WEBP, PNG, JPG, MP4, WEBM, MOV)(Max 40s) (10MB)*
-							</p>
+						{/* Media */}
+						<div>
+							<label className='mb-2 font-medium block'>Media fayl</label>
 							<input
 								type='file'
 								ref={fileInputRefs[lang.code]}
@@ -161,16 +255,21 @@ const CreateNews = () => {
 									<CirclePlus className='w-6 h-6 text-gray-500' />
 								)}
 							</button>
+							{errors[`media${lang.code.toUpperCase()}`] && (
+								<p className='text-red-500 text-sm mt-1'>
+									{errors[`media${lang.code.toUpperCase()}`]}
+								</p>
+							)}
 						</div>
 
-						{/* URL */}
-						<div className='w-[30%]'>
-							<p className='mb-2 font-medium'>URL manzil (Ixtiyoriy)</p>
+						{/* External Link */}
+						<div>
+							<label className='mb-2 font-medium block'>External Link</label>
 							<input
 								type='text'
-								value={formData[lang.code].url}
-								onChange={e => handleInputChange(e, lang.code, 'url')}
-								placeholder='Url'
+								value={externalLink}
+								onChange={e => setExternalLink(e.target.value)}
+								placeholder='Rasm yoki video URL'
 								className='w-full px-4 py-2 border border-gray-300 rounded'
 							/>
 						</div>
@@ -182,7 +281,7 @@ const CreateNews = () => {
 						type='submit'
 						className='px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700'
 					>
-						Saqlash
+						Save
 					</button>
 				</div>
 			</form>

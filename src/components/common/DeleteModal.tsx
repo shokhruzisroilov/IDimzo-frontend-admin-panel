@@ -3,7 +3,7 @@ import { X } from 'lucide-react'
 interface ModalProps {
 	isOpen: boolean
 	onClose: () => void
-	onDelete: () => void
+	onDelete?: () => void
 	title: string
 }
 

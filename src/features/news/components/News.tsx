@@ -99,7 +99,7 @@ const NewsPage = () => {
 								<div className='w-full md:w-[15%]'>
 									<h2 className='text-sm font-semibold text-gray-600'>Xabar</h2>
 									<p className='text-gray-500 text-sm truncate'>
-										{item.titleUz || '—'}
+										{item.title.uz || '—'}
 									</p>
 								</div>
 
@@ -108,7 +108,7 @@ const NewsPage = () => {
 										{item.mediaUrl ? (
 											<img
 												src={item.mediaUrl}
-												alt={item.titleUz || 'news image'}
+												alt={item.title.uz || 'news image'}
 												className='w-full h-full object-cover'
 											/>
 										) : (
