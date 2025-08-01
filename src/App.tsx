@@ -15,8 +15,24 @@ import CreateDocuments from './features/documents/components/CreateDocuments'
 import AddSection from './features/documents/components/AddSection'
 import LoginPage from './pages/auth/Login'
 import PrivateRoute from './PrivateRoute'
+import { useEffect } from 'react'
+import { useDispatch } from 'react-redux'
+import { logout } from './redux/slices/authSlice'
+import { getItem } from './helpers/persistanceStorage'
 
 const App = () => {
+	const dispatch = useDispatch()
+
+	useEffect(() => {
+		const accessToken = getItem('accessToken')
+		const refreshToken = getItem('refreshToken')
+
+		if (!accessToken || !refreshToken) {
+			dispatch(logout())
+			window.location.href = '/login'
+		}
+	}, [dispatch])
+
 	return (
 		<BrowserRouter>
 			<Routes>
@@ -40,7 +56,6 @@ const App = () => {
 						<Route path='billing' element={<BillingPage />} />
 						<Route path='notaries' element={<NotariesPage />} />
 					</Route>
-
 					<Route path='documents/create/:id' element={<AddSection />} />
 				</Route>
 			</Routes>
